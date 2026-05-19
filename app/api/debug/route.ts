@@ -1,0 +1,68 @@
+import { NextResponse } from "next/server";
+import { fetchAllSheets, cell, LEADS_COL as L } from "@/lib/google-sheets";
+
+export const dynamic = "force-dynamic";
+
+export async function GET() {
+  try {
+    const { leads, salesReports, bookings, liveSessions, liveFollowups, employees } =
+      await fetchAllSheets();
+
+    // Sample first 3 rows of each sheet
+    const sample = (rows: string[][], n = 3) =>
+      rows.slice(0, n).map((r) => r.slice(0, 15));
+
+    // Check date formats in leads
+    const leadDates = leads.slice(0, 10).map((r) => ({
+      received_date: cell(r, L.received_date),
+      sales_rep: cell(r, L.sales_rep),
+      admin_status: cell(r, L.admin_status),
+      type: cell(r, L.type),
+      rowLength: r.length,
+    }));
+
+    // Check what year parsing gives
+    function parseDate(dateStr: string) {
+      if (!dateStr || dateStr === "-") return null;
+      const parts = dateStr.split("/");
+      if (parts.length === 3) {
+        const day = parseInt(parts[0]);
+        const month = parseInt(parts[1]) - 1;
+        let year = parseInt(parts[2]);
+        if (year < 100) year += 2000;
+        if (year > 2500) year -= 543;
+        return { day, month: month + 1, year, original: dateStr };
+      }
+      return { original: dateStr, note: "not d/m/y format" };
+    }
+
+    const dateSamples = leads.slice(0, 20).map((r) => ({
+      raw: cell(r, L.received_date),
+      parsed: parseDate(cell(r, L.received_date)),
+    }));
+
+    const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Bangkok" }));
+
+    return NextResponse.json({
+      serverTime: now.toISOString(),
+      serverYear: now.getFullYear(),
+      counts: {
+        leads: leads.length,
+        salesReports: salesReports.length,
+        bookings: bookings.length,
+        liveSessions: liveSessions.length,
+        liveFollowups: liveFollowups.length,
+        employees: employees.length,
+      },
+      leadDates,
+      dateSamples,
+      sampleLeads: sample(leads),
+      sampleSalesReports: sample(salesReports),
+      sampleBookings: sample(bookings),
+      sampleLiveSessions: sample(liveSessions),
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: message, stack: err instanceof Error ? err.stack : undefined }, { status: 500 });
+  }
+}
