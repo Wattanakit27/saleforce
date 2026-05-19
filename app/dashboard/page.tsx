@@ -630,7 +630,7 @@ export default function DashboardPage() {
     sessions.sort((a, b) => (String(b.date) > String(a.date) ? 1 : -1));
 
     // Collect unique teams from sessions for filter dropdown
-    const liveTeams = [...new Set((la.sessions || []).map((s) => s.team).filter(Boolean))].sort();
+    const liveTeams = Array.from(new Set((la.sessions || []).map((s) => s.team).filter(Boolean))).sort();
 
     return (
       <div>
