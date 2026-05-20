@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { useDashboard } from "@/lib/use-dashboard";
 import { isAdmin } from "@/lib/auth";
 import {
   UPD_TGT,
-  LIVE_TGT,
   PAGE_SIZE,
   STATUS_COLOR,
   STATUS_ORDER,
@@ -34,7 +33,15 @@ type Tab = "o" | "a" | "b" | "s";
 // dfMonth: 0 = ทั้งหมด, -1 = วันนี้, 1-12 = เดือน
 type DfPreset = number;
 
-export default function DashboardPage() {
+export default function DashboardPageWrapper() {
+  return (
+    <Suspense fallback={<div className="app"><div className="loading-container"><div className="spin" /><span style={{ fontSize: 13 }}>กำลังโหลด...</span></div></div>}>
+      <DashboardPage />
+    </Suspense>
+  );
+}
+
+function DashboardPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
