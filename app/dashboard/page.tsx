@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { useDashboard } from "@/lib/use-dashboard";
 import { isAdmin } from "@/lib/auth";
@@ -34,6 +35,9 @@ type Tab = "o" | "a" | "b" | "s";
 type DfPreset = number;
 
 export default function DashboardPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
   const {
     employee,
     data: D,
@@ -47,14 +51,33 @@ export default function DashboardPage() {
     loadData,
   } = useDashboard();
 
-  const [tab, setTab] = useState<Tab>("o");
-  const [curS, setCurS] = useState("");
+  // Read initial state from URL
+  const initTab = (searchParams.get("tab") as Tab) || "o";
+  const initSeller = searchParams.get("seller") || "";
+  const initCase = searchParams.get("case") || null;
+
+  const [tab, setTabState] = useState<Tab>(initTab);
+  const [curS, setCurS] = useState(initSeller);
   const [curF, setCurF] = useState("all");
   const [curSo, setCurSo] = useState("urgent");
   const [curMode, setCurMode] = useState<"month" | "today">("month");
   const [lfPage, setLfPage] = useState(1);
   const [dfMonth, setDfMonth] = useState<DfPreset>(0);
-  const [showCase, setShowCase] = useState<string | null>(null);
+  const [showCase, setShowCase] = useState<string | null>(initCase);
+
+  // Sync state → URL
+  const updateUrl = useCallback((t: Tab, seller?: string, caseCode?: string | null) => {
+    const params = new URLSearchParams();
+    params.set("tab", t);
+    if (seller) params.set("seller", seller);
+    if (caseCode) params.set("case", caseCode);
+    router.replace(`/dashboard?${params.toString()}`, { scroll: false });
+  }, [router]);
+
+  const setTab = useCallback((t: Tab) => {
+    setTabState(t);
+    updateUrl(t);
+  }, [updateUrl]);
   const [errVisible, setErrVisible] = useState(true);
   const [msort, setMsort] = useState("lead");
   const [hsel, setHsel] = useState("all");
@@ -82,16 +105,26 @@ export default function DashboardPage() {
   // --- Switch tab ---
   const sv = useCallback(
     (v: Tab, seller?: string) => {
-      setTab(v);
+      setTabState(v);
       if (v === "s") {
         const s = seller || effectiveCurS;
         setCurS(s);
         setShowCase(null);
         setDfMonth(0);
+        updateUrl(v, s);
+      } else {
+        updateUrl(v);
       }
     },
-    [effectiveCurS]
+    [effectiveCurS, updateUrl]
   );
+
+  // --- Case detail with URL sync ---
+  const openCase = useCallback((code: string | null, seller?: string) => {
+    setShowCase(code);
+    const s = seller || curS || effectiveCurS;
+    updateUrl("s", s, code);
+  }, [curS, effectiveCurS, updateUrl]);
 
   // --- Diligence map ---
   const dilMap = useMemo(() => {
@@ -549,7 +582,7 @@ export default function DashboardPage() {
             const cls = l.updateCount === 0 ? "lfrow hr" : nc(l.updateCount) >= 2 ? "lfrow ha" : l.updateCount >= 3 ? "lfrow hb" : "lfrow";
             const carHas = !nocar(l.car);
             return (
-              <div className={cls} key={l.code} onClick={() => { setCurS(l.seller); sv("s", l.seller); setTimeout(() => setShowCase(l.code), 100); }}>
+              <div className={cls} key={l.code} onClick={() => { setCurS(l.seller); sv("s", l.seller); setTimeout(() => openCase(l.code, l.seller), 100); }}>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 11, color: "var(--blue)" }}>{l.code}</div>
                   <div style={{ fontSize: 10, color: "var(--t2)", marginTop: 1 }}>{l.seller}</div>
@@ -588,7 +621,7 @@ export default function DashboardPage() {
         {rows.slice(0, 25).map((l) => {
           const c = l.updateCount >= UPD_TGT ? "var(--green)" : l.updateCount >= 3 ? "var(--green-mid)" : "var(--amber)";
           return (
-            <div className="hlrow" key={l.code} onClick={() => { setCurS(l.seller); sv("s", l.seller); setTimeout(() => setShowCase(l.code), 100); }}>
+            <div className="hlrow" key={l.code} onClick={() => { setCurS(l.seller); sv("s", l.seller); setTimeout(() => openCase(l.code, l.seller), 100); }}>
               <div><div style={{ fontWeight: 700, fontSize: 11, color: "var(--blue)" }}>{l.code}</div><div style={{ fontSize: 10, color: "var(--t3)" }}>{l.lastUpdate && l.lastUpdate !== "-" ? l.lastUpdate : "—"}</div></div>
               <span style={{ color: "var(--blue)", fontWeight: 500 }}>{l.seller}</span>
               <span style={{ color: "var(--t2)", lineHeight: 1.4 }}>{(l.note || "").slice(0, 55)}</span>
@@ -795,7 +828,7 @@ export default function DashboardPage() {
                 )}
                 {b.leadCode && !empty(b.leadCode) && (
                   <div className="brow"><span className="blbl">&#x1F516; Lead Code</span>
-                    <span className="bval" style={{ color: "var(--blue)", cursor: "pointer" }} onClick={() => { setCurS(b.seller); sv("s", b.seller); setTimeout(() => setShowCase(b.leadCode), 100); }}>{b.leadCode} →</span>
+                    <span className="bval" style={{ color: "var(--blue)", cursor: "pointer" }} onClick={() => { setCurS(b.seller); sv("s", b.seller); setTimeout(() => openCase(b.leadCode, b.seller), 100); }}>{b.leadCode} →</span>
                   </div>
                 )}
                 {b.note && !empty(b.note) && <div className="brow"><span className="blbl">&#x1F4DD; หมายเหตุ</span><span className="bval" style={{ color: "var(--t2)" }}>{b.note}</span></div>}
@@ -897,7 +930,7 @@ export default function DashboardPage() {
             <div style={{ fontSize: 15, fontWeight: 700 }}>{effectiveCurS}</div>
             <div style={{ fontSize: 11, color: "var(--t2)" }}>{sd.lead || 0} Lead · ว่าง {sd.vacant || 0} · จอง {sd.booking || 0} · ทีม {sd.team || "?"}</div>
           </div>
-          <select value={effectiveCurS} onChange={(e) => { setCurS(e.target.value); setShowCase(null); setCurF("all"); setLfPage(1); }}>
+          <select value={effectiveCurS} onChange={(e) => { setCurS(e.target.value); openCase(null); setCurF("all"); setLfPage(1); updateUrl("s", e.target.value); }}>
             {sellerNames.map((n) => <option key={n} value={n}>{n}</option>)}
           </select>
         </div>
@@ -1023,7 +1056,7 @@ export default function DashboardPage() {
               const carHas = !nocar(l.car);
               const chanHas = !empty(l.channel) && l.channel !== "-";
               return (
-                <div className={cls} key={l.code} onClick={() => setShowCase(l.code)}>
+                <div className={cls} key={l.code} onClick={() => openCase(l.code)}>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 11, color: "var(--blue)" }}>
                       {l.code}
@@ -1088,7 +1121,7 @@ export default function DashboardPage() {
     return (
       <div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-          <button className="bbtn" onClick={() => setShowCase(null)}>← รายการ</button>
+          <button className="bbtn" onClick={() => openCase(null)}>← รายการ</button>
           <div>
             <div style={{ fontSize: 15, fontWeight: 700, color: "var(--blue)" }}>{l.code}</div>
             <div style={{ fontSize: 11, color: "var(--t2)" }}>
