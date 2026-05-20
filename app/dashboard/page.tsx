@@ -646,20 +646,13 @@ export default function DashboardPage() {
         <div className="g2">
           <div className="card" style={{ margin: 0 }}>
             <div className="card-title">&#x1F4E1; ไลฟ์สด</div>
-            <div className="act-hdr"><span>เซลล์</span><span>ครั้ง/เป้า</span><span style={{ textAlign: "right" }}>inbox</span></div>
+            <div className="act-hdr"><span>เซลล์</span><span>จำนวนครั้ง</span><span style={{ textAlign: "right" }}>inbox</span></div>
             {[...sellers].sort((a, b) => b.live - a.live).map((s) => {
-              const ok = s.live >= LIVE_TGT;
-              const p = Math.min((s.live / LIVE_TGT) * 100, 100);
               const inbox = la.byHost[s.name]?.inbox || 0;
               return (
                 <div className="act-row" key={s.name} onClick={() => sv("s", s.name)}>
                   <span style={{ fontWeight: 500 }}>{s.name}</span>
-                  <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                    <div style={{ flex: 1, height: 5, borderRadius: 3, background: "var(--bg3)", overflow: "hidden" }}>
-                      <div style={{ height: "100%", borderRadius: 3, width: `${p}%`, background: ok ? "var(--green-mid)" : "var(--blue)" }} />
-                    </div>
-                    <span style={{ fontSize: 10, color: ok ? "var(--green)" : "var(--blue)" }}>{s.live}/{LIVE_TGT}</span>
-                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--blue)" }}>{s.live} ครั้ง</span>
                   <span style={{ textAlign: "right", fontSize: 11, color: "var(--t3)" }}>&#x1F4E5;{inbox}</span>
                 </div>
               );
@@ -837,7 +830,7 @@ export default function DashboardPage() {
       { l: "Lead", v: sd.lead || 0, c: "var(--t1)" },
       { l: "ติดตาม", v: sd.follow || 0, c: "var(--blue)" },
       { l: "ว่าง", v: sd.vacant || 0, c: "var(--t3)" },
-      { l: "จอง", v: sd.booking || 0, c: "var(--green)", s: "เป้า " + (sd.target || 0) },
+      { l: "จอง", v: sd.booking || 0, c: "var(--green)" },
       { l: "ปิด/เป้า", v: (sd.done || 0) + "/" + (sd.target || 0), c: (sd.done || 0) >= (sd.target || 1) ? "var(--green)" : "var(--amber)" },
       { l: "ยังไม่โทร", v: noU, c: noU > 10 ? "var(--red)" : "var(--amber)" },
     ];
@@ -943,17 +936,13 @@ export default function DashboardPage() {
             <div className="card" style={{ margin: 0, padding: 11 }}>
               <div style={{ fontSize: 11, color: "var(--t3)", marginBottom: 5 }}>&#x1F4E1; ไลฟ์</div>
               {(() => {
-                const lOk = (sd.live || 0) >= LIVE_TGT;
-                const lP = Math.min(((sd.live || 0) / LIVE_TGT) * 100, 100);
                 const inbox = la?.byHost?.[effectiveCurS]?.inbox || 0;
                 const lead = la?.byHost?.[effectiveCurS]?.lead || 0;
                 return (
                   <>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                      <span style={{ fontSize: 11, color: "var(--t2)" }}>{sd.live} ครั้ง / เป้า {LIVE_TGT}</span>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: lOk ? "var(--green)" : "var(--blue)" }}>{lOk ? "✅ ถึงเป้า" : "ขาด " + (LIVE_TGT - (sd.live || 0))}</span>
+                      <span style={{ fontSize: 11, color: "var(--t2)" }}>{sd.live} ครั้ง</span>
                     </div>
-                    <div className="pbr" style={{ height: 8 }}><div className="pbf" style={{ width: `${lP}%`, background: lOk ? "var(--green-mid)" : "var(--blue)" }} /></div>
                     <div style={{ fontSize: 10, color: "var(--t3)", marginTop: 3 }}>Inbox {inbox} · Lead {lead}</div>
                   </>
                 );
