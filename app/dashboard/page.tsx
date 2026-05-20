@@ -959,7 +959,8 @@ function DashboardPage() {
             <div className="kpi" key={i}>
               <div className="kl">{k.l}</div>
               <div className="kv" style={{ color: k.c }}>{k.v}</div>
-              {k.s && <div className="ks">{k.s}</div>}
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+              {(k as any).s && <div className="ks">{(k as any).s}</div>}
             </div>
           ))}
         </div>
