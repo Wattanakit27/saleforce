@@ -141,7 +141,13 @@ const SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets";
 
 function getAuth(): GoogleAuth {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const key = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  let rawKey = process.env.GOOGLE_PRIVATE_KEY || "";
+  // Strip surrounding quotes if present
+  if ((rawKey.startsWith('"') && rawKey.endsWith('"')) || (rawKey.startsWith("'") && rawKey.endsWith("'"))) {
+    rawKey = rawKey.slice(1, -1);
+  }
+  // Replace literal \n with real newlines
+  const key = rawKey.replace(/\\n/g, "\n");
   if (!email || !key) {
     throw new Error("Missing GOOGLE_SERVICE_ACCOUNT_EMAIL or GOOGLE_PRIVATE_KEY env vars");
   }
