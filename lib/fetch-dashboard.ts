@@ -47,6 +47,16 @@ function bangkokNow(): Date {
 
 function parseDate(dateStr: string): Date | null {
   if (!dateStr || dateStr === "-") return null;
+  // Handle Excel serial date numbers (e.g., "46037")
+  if (/^\d{4,5}$/.test(dateStr.trim())) {
+    const serial = parseInt(dateStr.trim());
+    if (serial > 1000 && serial < 100000) {
+      // Excel epoch: 1900-01-01, but Excel has a bug treating 1900 as leap year
+      const excelEpoch = new Date(1899, 11, 30); // Dec 30, 1899
+      const d = new Date(excelEpoch.getTime() + serial * 86400000);
+      if (!isNaN(d.getTime())) return d;
+    }
+  }
   const parts = dateStr.split("/");
   if (parts.length === 3) {
     const day = parseInt(parts[0]);
@@ -360,8 +370,23 @@ export async function fetchDashboardData(): Promise<DashboardData> {
 
   // Monthly Summary
   function getMonth(dateStr: string): number {
+    if (!dateStr || dateStr === "-") return 0;
+    // Handle Excel serial date
+    if (/^\d{4,5}$/.test(dateStr.trim())) {
+      const d = parseDate(dateStr);
+      return d ? d.getMonth() + 1 : 0;
+    }
     const p = dateStr.split("/");
     return p.length >= 2 ? parseInt(p[1]) || 0 : 0;
+  }
+
+  // For "ปล่อย" cases: use releaseDate first, fallback to date
+  function getDoneMonth(b: BookingCase): number {
+    if (b.releaseDate && b.releaseDate !== "-" && b.releaseDate !== "") {
+      const m = getMonth(b.releaseDate);
+      if (m > 0) return m;
+    }
+    return getMonth(b.date);
   }
 
   const monthlySummary: Record<number, {
@@ -381,13 +406,16 @@ export async function fetchDashboardData(): Promise<DashboardData> {
     const mFollow = mLeads.filter((r) => isFollow(cell(r, L.admin_status))).length;
     const mVacant = mLeads.filter((r) => isVacant(cell(r, L.admin_status))).length;
 
+    // For non-ปล่อย statuses, filter by booking date
     const mBookings = bookingCases.filter((b) => getMonth(b.date) === m);
+    // For ปล่อย, filter by releaseDate (fallback to date)
+    const mDone = bookingCases.filter((b) => b.status === "ปล่อย" && getDoneMonth(b) === m);
     const mPipeline: Record<string, number> = {
       "จอง": mJongs.length,
       "รอเซ็นต์": mBookings.filter((b) => b.status === "รอเซ็นต์").length,
       "รอผล": mBookings.filter((b) => b.status === "รอผล").length,
       "รอปล่อย": mBookings.filter((b) => b.status === "รอปล่อย").length,
-      "ปล่อย": mBookings.filter((b) => b.status === "ปล่อย").length,
+      "ปล่อย": mDone.length,
       "รีเจ็ก": mBookings.filter((b) => b.status === "รีเจ็ก").length,
     };
 
@@ -397,12 +425,12 @@ export async function fetchDashboardData(): Promise<DashboardData> {
 
     ALL_SELLERS.forEach((name) => {
       const sl = mLeads.filter((r) => normalizeSeller(cell(r, L.sales_rep)) === name);
-      const sb = mBookings.filter((b) => b.seller === name);
+      const sbDone = mDone.filter((b) => b.seller === name);
       mSellers[name] = {
         lead: sl.length,
         follow: sl.filter((r) => isFollow(cell(r, L.admin_status))).length,
         vacant: sl.filter((r) => isVacant(cell(r, L.admin_status))).length,
-        done: sb.filter((b) => b.status === "ปล่อย").length,
+        done: sbDone.length,
         booking: mJongBySeller[name] || 0,
       };
     });
@@ -423,7 +451,7 @@ export async function fetchDashboardData(): Promise<DashboardData> {
     monthlySummary[m] = {
       totalLeads: mLeads.length, leadNormal: mLN, leadRJ: mLR,
       totalFollow: mFollow, totalVacant: mVacant,
-      totalDone: mBookings.filter((b) => b.status === "ปล่อย").length,
+      totalDone: mDone.length,
       totalBookings: mJongs.length,
       pipeline: mPipeline,
       sellers: mSellers,
