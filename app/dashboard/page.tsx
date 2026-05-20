@@ -72,6 +72,17 @@ function DashboardPage() {
   const [dfMonth, setDfMonth] = useState<DfPreset>(0);
   const [showCase, setShowCase] = useState<string | null>(initCase);
 
+  // Sync URL → state on hydration (useState initializer may miss SSR→client transition)
+  useEffect(() => {
+    const urlTab = searchParams.get("tab") as Tab | null;
+    const urlSeller = searchParams.get("seller") || "";
+    const urlCase = searchParams.get("case") || null;
+    if (urlTab && urlTab !== tab) setTabState(urlTab);
+    if (urlSeller && urlSeller !== curS) setCurS(urlSeller);
+    if (urlCase !== showCase) setShowCase(urlCase);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Sync state → URL
   const updateUrl = useCallback((t: Tab, seller?: string, caseCode?: string | null) => {
     const params = new URLSearchParams();
@@ -1213,7 +1224,7 @@ function DashboardPage() {
       )}
       {lastFetch && (
         <div style={{ fontSize: 10, color: "var(--t3)", marginBottom: 8, textAlign: "right" }}>
-          &#x1F551; ดึงข้อมูลล่าสุด: {new Date(lastFetch).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" })}
+          &#x1F551; ดึงข้อมูลล่าสุด: {lastFetch}
         </div>
       )}
       <div className="tabs">
